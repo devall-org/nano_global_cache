@@ -1,21 +1,21 @@
-# Joogi
+# NanoGlobalCache
 
-**TODO: Add description**
+**A lightweight global cache for Elixir with expiration support**
 
 ## Installation
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `joogi` to your list of dependencies in `mix.exs`:
+by adding `nano_global_cache` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:joogi, "~> 0.1.0"}
+    {:nano_global_cache, "~> 0.1.0"}
   ]
 end
 ```
 
 Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
 and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/joogi>.
+be found at <https://hexdocs.pm/nano_global_cache>.
 

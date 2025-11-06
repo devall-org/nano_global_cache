@@ -1,12 +1,12 @@
-defmodule Joogi do
-  use Spark.Dsl, default_extensions: [extensions: [Joogi.Dsl]]
+defmodule NanoGlobalCache do
+  use Spark.Dsl, default_extensions: [extensions: [NanoGlobalCache.Dsl]]
 
-  def fetch(module, field_name) do
+  def fetch(module, cache_name) do
     %{expires_in: expires_in, run: run} =
-      Joogi.Info.fields(module) |> Enum.find(fn field -> field.name == field_name end)
+      NanoGlobalCache.Info.caches(module) |> Enum.find(fn cache -> cache.name == cache_name end)
 
     run_with_timestamp = fn -> run.() |> add_timestamp() end
-    agent = {module, field_name}
+    agent = {module, cache_name}
 
     :global.trans(agent, fn ->
       case :global.whereis_name(agent) do
@@ -47,3 +47,4 @@ defmodule Joogi do
     end
   end
 end
+

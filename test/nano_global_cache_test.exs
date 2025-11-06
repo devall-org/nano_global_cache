@@ -1,12 +1,12 @@
-defmodule JoogiTest do
+defmodule NanoGlobalCacheTest do
   use ExUnit.Case
-  doctest Joogi
+  doctest NanoGlobalCache
 
   defmodule Season do
-    use Joogi
+    use NanoGlobalCache
 
-    fields do
-      field :spring do
+    caches do
+      cache :spring do
         expires_in(200)
 
         run(fn ->
@@ -15,7 +15,7 @@ defmodule JoogiTest do
         end)
       end
 
-      field :summer do
+      cache :summer do
         expires_in(200)
 
         run(fn ->
@@ -60,3 +60,4 @@ defmodule JoogiTest do
     assert_receive :summer
   end
 end
+
