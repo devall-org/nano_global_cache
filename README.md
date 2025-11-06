@@ -41,6 +41,8 @@ defmodule MyApp.TokenCache do
     expires_in :timer.minutes(30)
     fetch fn -> refresh_slack_token() end
   end
+
+  # Generated functions: fetch/1, fetch!/1, clear/1, clear_all/0
 end
 ```
 
