@@ -28,7 +28,7 @@ defmodule MyApp.TokenCache do
   use NanoGlobalCache
 
   cache :github do
-    expires_in 3_600_000  # 1 hour
+    expires_in :timer.hours(1)
     fetch fn ->
       case refresh_github_token() do
         {:ok, token} -> {:ok, token}
@@ -38,7 +38,7 @@ defmodule MyApp.TokenCache do
   end
 
   cache :slack do
-    expires_in 3_600_000
+    expires_in :timer.minutes(30)
     fetch fn -> refresh_slack_token() end
   end
 end
