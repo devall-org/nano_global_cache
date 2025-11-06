@@ -6,7 +6,7 @@ Perfect for caching OAuth tokens, API keys, and other time-sensitive data that s
 
 ## Why NanoGlobalCache?
 
-- ✅ **Smart caching**: Caches successes, auto-retries failures
+- ✅ **Smart caching**: Caches successes, retries failures on next fetch
 - 🌍 **Global**: Shared across entire Erlang node
 - 🔐 **Thread-safe**: Safe concurrent access via `:global.trans/2`
 - ⏱️ **Expiration**: Time-based invalidation
