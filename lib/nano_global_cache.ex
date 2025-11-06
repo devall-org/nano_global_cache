@@ -2,27 +2,27 @@ defmodule NanoGlobalCache do
   use Spark.Dsl, default_extensions: [extensions: [NanoGlobalCache.Dsl]]
 
   def fetch(module, cache_name) do
-    %{expires_in: expires_in, run: run} =
+    %{expires_in: expires_in, fetch: fetch_fn} =
       NanoGlobalCache.Info.caches(module) |> Enum.find(fn cache -> cache.name == cache_name end)
 
-    run_with_timestamp = fn -> run.() |> add_timestamp() end
+    fetch_with_timestamp = fn -> fetch_fn.() |> add_timestamp() end
     agent = {module, cache_name}
 
     :global.trans(agent, fn ->
       case :global.whereis_name(agent) do
         :undefined ->
-          {:ok, pid} = Agent.start(run_with_timestamp, name: {:global, agent})
+          {:ok, pid} = Agent.start(fetch_with_timestamp, name: {:global, agent})
           Agent.get(pid, &remove_timestamp/1)
 
         pid when is_pid(pid) ->
           :ok =
             Agent.update(pid, fn
               :error ->
-                run_with_timestamp.()
+                fetch_with_timestamp.()
 
               {:ok, value, timestamp} ->
                 if System.system_time(:millisecond) - timestamp > expires_in do
-                  run_with_timestamp.()
+                  fetch_with_timestamp.()
                 else
                   {:ok, value, timestamp}
                 end
@@ -47,4 +47,3 @@ defmodule NanoGlobalCache do
     end
   end
 end
-

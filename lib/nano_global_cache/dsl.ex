@@ -1,6 +1,6 @@
 defmodule NanoGlobalCache.Dsl do
   defmodule Cache do
-    defstruct [:name, :expires_in, :run, :__spark_metadata__]
+    defstruct [:name, :expires_in, :fetch, :__spark_metadata__]
   end
 
   @cache %Spark.Dsl.Entity{
@@ -19,7 +19,7 @@ defmodule NanoGlobalCache.Dsl do
         required: true,
         doc: "The number of milliseconds to cache the value"
       ],
-      run: [
+      fetch: [
         type: {:fun, 0},
         required: true,
         doc: "The function to fetch the value"
@@ -36,4 +36,3 @@ defmodule NanoGlobalCache.Dsl do
 
   use Spark.Dsl.Extension, sections: [@caches], transformers: [NanoGlobalCache.AddFetch]
 end
-
