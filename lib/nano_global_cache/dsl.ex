@@ -31,6 +31,7 @@ defmodule NanoGlobalCache.Dsl do
     name: :caches,
     schema: [],
     entities: [@cache],
+    top_level?: true,
     describe: "Define cacheable values with expiration"
   }
 

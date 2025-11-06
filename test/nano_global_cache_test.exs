@@ -5,23 +5,21 @@ defmodule NanoGlobalCacheTest do
   defmodule Season do
     use NanoGlobalCache
 
-    caches do
-      cache :spring do
-        expires_in(200)
+    cache :spring do
+      expires_in 200
 
-        fetch(fn ->
-          send(Agent.get(:cur_test, & &1), :spring)
-          {:ok, :crypto.strong_rand_bytes(4)}
-        end)
+      fetch fn ->
+        send(Agent.get(:cur_test, & &1), :spring)
+        {:ok, :crypto.strong_rand_bytes(4)}
       end
+    end
 
-      cache :summer do
-        expires_in(200)
+    cache :summer do
+      expires_in 200
 
-        fetch(fn ->
-          send(Agent.get(:cur_test, & &1), :summer)
-          :error
-        end)
+      fetch fn ->
+        send(Agent.get(:cur_test, & &1), :summer)
+        :error
       end
     end
 
