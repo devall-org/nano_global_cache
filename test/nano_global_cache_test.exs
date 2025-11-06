@@ -2,23 +2,23 @@ defmodule NanoGlobalCacheTest do
   use ExUnit.Case
   doctest NanoGlobalCache
 
-  defmodule Season do
+  defmodule TokenCache do
     use NanoGlobalCache
 
-    cache :spring do
+    cache :github do
       expires_in 200
 
       fetch fn ->
-        send(Agent.get(:cur_test, & &1), :spring)
-        {:ok, :crypto.strong_rand_bytes(4)}
+        send(Agent.get(:cur_test, & &1), :github)
+        {:ok, "gho_#{:rand.uniform(10000)}"}
       end
     end
 
-    cache :summer do
+    cache :google do
       expires_in 200
 
       fetch fn ->
-        send(Agent.get(:cur_test, & &1), :summer)
+        send(Agent.get(:cur_test, & &1), :google)
         :error
       end
     end
@@ -29,47 +29,50 @@ defmodule NanoGlobalCacheTest do
   setup do
     this = self()
     Agent.start_link(fn -> this end, name: :cur_test)
-    on_exit(fn -> Season.clear_all() end)
+    on_exit(fn -> TokenCache.clear_all() end)
     :ok
   end
 
-  test "caches successful results until expiration" do
-    refute_receive :spring
-    {:ok, val1} = Season.fetch(:spring)
-    assert_receive :spring
+  test "caches GitHub tokens until expiration" do
+    refute_receive :github
+    {:ok, token1} = TokenCache.fetch(:github)
+    assert_receive :github
 
-    {:ok, val2} = Season.fetch(:spring)
-    # cached, no re-execution
-    refute_receive :spring
-    assert val1 == val2
+    {:ok, token2} = TokenCache.fetch(:github)
+    # cached, no re-execution (no external API call)
+    refute_receive :github
+    assert token1 == token2
 
     Process.sleep(300)
 
-    refute_receive :spring
-    {:ok, val3} = Season.fetch(:spring)
-    assert_receive :spring
-    assert val3 != val1
+    refute_receive :github
+    {:ok, token3} = TokenCache.fetch(:github)
+    assert_receive :github
+    assert token3 != token1
   end
 
-  test "does not cache failures" do
-    refute_receive :summer
-    :error = Season.fetch(:summer)
-    assert_receive :summer
+  test "does not cache Google token refresh failures" do
+    refute_receive :google
+    :error = TokenCache.fetch(:google)
+    assert_receive :google
 
-    :error = Season.fetch(:summer)
-    # errors are not cached
-    assert_receive :summer
+    :error = TokenCache.fetch(:google)
+    # refresh failures are retried on each call
+    assert_receive :google
   end
 
-  test "fetch! returns value on success" do
-    refute_receive :spring
-    <<_::binary-size(4)>> = Season.fetch!(:spring)
-    assert_receive :spring
+  test "fetch! returns GitHub token on success" do
+    refute_receive :github
+    token = TokenCache.fetch!(:github)
+    assert_receive :github
+
+    assert is_binary(token)
+    assert String.starts_with?(token, "gho_")
   end
 
-  test "fetch! raises on failure" do
-    refute_receive :summer
-    assert_raise RuntimeError, fn -> Season.fetch!(:summer) end
-    assert_receive :summer
+  test "fetch! raises on Google token refresh failure" do
+    refute_receive :google
+    assert_raise RuntimeError, fn -> TokenCache.fetch!(:google) end
+    assert_receive :google
   end
 end
