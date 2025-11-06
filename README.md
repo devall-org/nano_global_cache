@@ -30,7 +30,7 @@ defmodule MyApp.TokenCache do
   cache :github do
     expires_in :timer.hours(1)
     fetch fn ->
-      case refresh_github_token() do
+      case GitHub.refresh_token() do
         {:ok, token} -> {:ok, token}
         :error -> :error
       end
@@ -39,7 +39,7 @@ defmodule MyApp.TokenCache do
 
   cache :slack do
     expires_in :timer.minutes(30)
-    fetch fn -> refresh_slack_token() end
+    fetch fn -> SlackAPI.get_token() end
   end
 
   # Generated functions: fetch/1, fetch!/1, clear/1, clear_all/0
