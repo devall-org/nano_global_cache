@@ -1,21 +1,87 @@
 # NanoGlobalCache
 
-**A lightweight global cache for Elixir with expiration support**
+🔒 **Lightweight global cache for Elixir** with expiration support and intelligent failure handling.
+
+Perfect for caching OAuth tokens, API keys, and other time-sensitive data that shouldn't be repeatedly refreshed.
+
+## Why NanoGlobalCache?
+
+- ✅ **Smart caching**: Caches successes, auto-retries failures
+- 🌍 **Global**: Shared across entire Erlang node
+- 🔐 **Thread-safe**: Safe concurrent access via `:global.trans/2`
+- ⏱️ **Expiration**: Time-based invalidation
+- 📝 **Clean DSL**: Compile-time configuration with auto-generated functions
+- ⚡ **Minimal overhead**: No background processes or setup
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `nano_global_cache` to your list of dependencies in `mix.exs`:
-
 ```elixir
 def deps do
-  [
-    {:nano_global_cache, "~> 0.1.0"}
-  ]
+  [{:nano_global_cache, "~> 0.1.0"}]
 end
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/nano_global_cache>.
+## Quick Example
 
+```elixir
+defmodule MyApp.TokenCache do
+  use NanoGlobalCache
+
+  cache :github do
+    expires_in 3_600_000  # 1 hour
+    fetch fn ->
+      case refresh_github_token() do
+        {:ok, token} -> {:ok, token}
+        :error -> :error
+      end
+    end
+  end
+
+  cache :slack do
+    expires_in 3_600_000
+    fetch fn -> refresh_slack_token() end
+  end
+end
+```
+
+### Usage
+
+```elixir
+# Pattern match on result
+{:ok, token} = MyApp.TokenCache.fetch(:github)
+
+# Or use bang version
+token = MyApp.TokenCache.fetch!(:github)
+
+# Clear cache
+MyApp.TokenCache.clear(:github)
+MyApp.TokenCache.clear_all()
+```
+
+## How It Works
+
+- **Successful results**: Cached with timestamp, returned until expiration
+- **Failed results** (`:error`): Never cached, always retried on next call
+- **Thread safety**: All operations use global Erlang transactions (`global.trans/2`)
+
+## API Reference
+
+### Define Caches
+```elixir
+cache :cache_name do
+  expires_in milliseconds_to_expire
+  fetch fn -> {:ok, value} or :error end
+end
+```
+
+### Generated Functions
+- `fetch(name)` → `{:ok, value}` or `:error`
+- `fetch!(name)` → `value` or raises `RuntimeError`
+- `clear(name)` → `:ok`
+- `clear_all()` → `:ok`
+
+## Implementation
+
+- Spark DSL for compile-time configuration
+- Erlang global agents for distributed storage
+- Automatic function generation via transformers
