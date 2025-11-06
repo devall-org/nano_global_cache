@@ -29,6 +29,7 @@ defmodule NanoGlobalCacheTest do
   setup do
     this = self()
     Agent.start_link(fn -> this end, name: :cur_test)
+    on_exit(fn -> Season.clear_all() end)
     :ok
   end
 
@@ -57,6 +58,18 @@ defmodule NanoGlobalCacheTest do
 
     :error = Season.fetch(:summer)
     # errors are not cached
+    assert_receive :summer
+  end
+
+  test "fetch! returns value on success" do
+    refute_receive :spring
+    <<_::binary-size(4)>> = Season.fetch!(:spring)
+    assert_receive :spring
+  end
+
+  test "fetch! raises on failure" do
+    refute_receive :summer
+    assert_raise RuntimeError, fn -> Season.fetch!(:summer) end
     assert_receive :summer
   end
 end
