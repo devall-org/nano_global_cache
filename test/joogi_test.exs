@@ -24,10 +24,6 @@ defmodule JoogiTest do
         end)
       end
     end
-
-    def fetch(field_name) do
-      Joogi.fetch(Season, field_name)
-    end
   end
 
   setup do

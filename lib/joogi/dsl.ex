@@ -34,5 +34,5 @@ defmodule Joogi.Dsl do
     describe: "Define cacheable fields with expiration"
   }
 
-  use Spark.Dsl.Extension, sections: [@fields]
+  use Spark.Dsl.Extension, sections: [@fields], transformers: [Joogi.AddFetch]
 end
