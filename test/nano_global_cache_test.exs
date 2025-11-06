@@ -33,46 +33,66 @@ defmodule NanoGlobalCacheTest do
     :ok
   end
 
-  test "caches GitHub tokens until expiration" do
-    refute_receive :github
-    {:ok, token1} = TokenCache.fetch(:github)
-    assert_receive :github
+  describe "fetch/1" do
+    test "caches GitHub tokens until expiration" do
+      {:ok, token1} = TokenCache.fetch(:github)
+      assert_receive :github
 
-    {:ok, token2} = TokenCache.fetch(:github)
-    # cached, no re-execution (no external API call)
-    refute_receive :github
-    assert token1 == token2
+      {:ok, token2} = TokenCache.fetch(:github)
+      # cached, no re-execution (no external API call)
+      refute_receive :github
+      assert token1 == token2
 
-    Process.sleep(300)
+      Process.sleep(300)
 
-    refute_receive :github
-    {:ok, token3} = TokenCache.fetch(:github)
-    assert_receive :github
-    assert token3 != token1
+      {:ok, token3} = TokenCache.fetch(:github)
+      assert_receive :github
+      assert token3 != token1
+    end
+
+    test "does not cache Google token refresh failures" do
+      :error = TokenCache.fetch(:google)
+      assert_receive :google
+
+      :error = TokenCache.fetch(:google)
+      # refresh failures are retried on each call
+      assert_receive :google
+    end
   end
 
-  test "does not cache Google token refresh failures" do
-    refute_receive :google
-    :error = TokenCache.fetch(:google)
-    assert_receive :google
+  describe "fetch!/1" do
+    test "returns GitHub token on success" do
+      token = TokenCache.fetch!(:github)
+      assert_receive :github
+      assert String.starts_with?(token, "gho_")
+    end
 
-    :error = TokenCache.fetch(:google)
-    # refresh failures are retried on each call
-    assert_receive :google
+    test "raises on Google token refresh failure" do
+      assert_raise RuntimeError, fn -> TokenCache.fetch!(:google) end
+      assert_receive :google
+    end
   end
 
-  test "fetch! returns GitHub token on success" do
-    refute_receive :github
-    token = TokenCache.fetch!(:github)
-    assert_receive :github
+  describe "clear" do
+    test "removes cache before expiration" do
+      {:ok, token1} = TokenCache.fetch(:github)
+      {:ok, token2} = TokenCache.fetch(:github)
+      assert token1 == token2
 
-    assert is_binary(token)
-    assert String.starts_with?(token, "gho_")
-  end
+      TokenCache.clear(:github)
 
-  test "fetch! raises on Google token refresh failure" do
-    refute_receive :google
-    assert_raise RuntimeError, fn -> TokenCache.fetch!(:google) end
-    assert_receive :google
+      {:ok, token3} = TokenCache.fetch(:github)
+      assert token3 != token1
+    end
+
+    test "clear_all removes all caches" do
+      {:ok, token1} = TokenCache.fetch(:github)
+      :error = TokenCache.fetch(:google)
+
+      TokenCache.clear_all()
+
+      {:ok, token2} = TokenCache.fetch(:github)
+      assert token2 != token1
+    end
   end
 end
