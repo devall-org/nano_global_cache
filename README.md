@@ -64,6 +64,21 @@ MyApp.TokenCache.clear_all()
 - **Failed results** (`:error`): Never cached, always retried on next call
 - **Thread safety**: All operations use global Erlang transactions (`global.trans/2`)
 
+## When to Use
+
+This library is optimized for **lightweight data** like:
+- OAuth tokens, API keys, JWT tokens
+- Small configuration values
+- Session identifiers
+- Cached credentials
+
+**NOT recommended for**:
+- Large binary data (images, files, documents)
+- High-frequency writes
+- Performance-critical caching needs
+
+NanoGlobalCache uses `:global` and `Agent` for simplicity and minimal overhead. It's designed for scenarios where performance impact is negligible and simplicity is valued over throughput.
+
 ## API Reference
 
 ### Define Caches
