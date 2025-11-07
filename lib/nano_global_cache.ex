@@ -148,7 +148,7 @@ defmodule NanoGlobalCache do
       end
 
     spec = %{
-      id: {group, node()},
+      id: group,
       start: {Agent, :start_link, [fn -> initial_value end]},
       restart: :temporary
     }
