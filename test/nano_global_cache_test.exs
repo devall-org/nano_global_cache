@@ -36,7 +36,17 @@ defmodule NanoGlobalCacheTest do
   setup do
     this = self()
     Agent.start_link(fn -> this end, name: :cur_test)
-    on_exit(fn -> TokenCache.clear_all() end)
+
+    on_exit(fn ->
+      TokenCache.clear_all()
+      # Clear :pg groups that might still have members
+      for cache_name <- [:github, :google, :slack] do
+        group = {TokenCache, cache_name}
+        :pg.get_members(:nano_global_cache, group)
+        |> Enum.each(&Agent.stop/1)
+      end
+    end)
+
     :ok
   end
 
@@ -127,6 +137,47 @@ defmodule NanoGlobalCacheTest do
       TokenCache.clear(:github)
       %{active: active_after_clear} = DynamicSupervisor.count_children(NanoGlobalCache.Supervisor)
       assert active_after_clear == active_before + 1
+    end
+
+    test "agents are added to :pg groups" do
+      group_github = {TokenCache, :github}
+      group_slack = {TokenCache, :slack}
+
+      # Initially no members
+      assert :pg.get_members(:nano_global_cache, group_github) == []
+      assert :pg.get_members(:nano_global_cache, group_slack) == []
+
+      # Create first cache
+      {:ok, _, _} = TokenCache.fetch(:github)
+      assert length(:pg.get_members(:nano_global_cache, group_github)) == 1
+
+      # Create second cache
+      {:ok, _, _} = TokenCache.fetch(:slack)
+      assert length(:pg.get_members(:nano_global_cache, group_slack)) == 1
+
+      # Clear removes from pg
+      TokenCache.clear(:github)
+      assert :pg.get_members(:nano_global_cache, group_github) == []
+      assert length(:pg.get_members(:nano_global_cache, group_slack)) == 1
+    end
+
+    test "local members are preferred" do
+      group = {TokenCache, :github}
+
+      # First fetch creates local member
+      {:ok, token1, expires_at1} = TokenCache.fetch(:github)
+
+      # Verify local member exists
+      [_local_pid] = :pg.get_local_members(:nano_global_cache, group)
+
+      # Second fetch should use the same local member (no fetch call)
+      {:ok, token2, expires_at2} = TokenCache.fetch(:github)
+      assert token1 == token2
+      assert expires_at1 == expires_at2
+      assert_receive :github, 100
+
+      # No additional fetch messages (meaning it used cache)
+      refute_receive :github
     end
   end
 end

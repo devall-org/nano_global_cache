@@ -75,9 +75,11 @@ MyApp.TokenCache.clear_all()
 
 ## How It Works
 
-- **Successful results**: Cached with expiration time, returned until expiration
-- **Failed results** (`:error`): Never cached, always retried on next call
-- **Distributed concurrency**: All operations use global Erlang transactions (`global.trans/2`) for safe access across nodes
+- **Replicated storage**: Each cache is replicated across all nodes using `:pg` groups
+- **Local preference**: Read operations prioritize local replicas (lock-free, fast)
+- **Safe updates**: Updates use `:global.trans/2` with double-check pattern to prevent race conditions
+- **Expiration handling**: Each node checks expiration independently; only expired entries trigger cluster-wide fetch
+- **Failed results**: Never cached, always retried on next call
 
 ## When to Use
 
@@ -92,7 +94,7 @@ This library is optimized for **lightweight data** like:
 - Dynamic cache keys (unbounded number of entries)
 - Large cache values that would cause heavy network traffic between nodes
 
-NanoGlobalCache uses `:global` and `Agent` for simplicity and minimal overhead. Each cache lives on a single node without replication - other nodes access it remotely. It's designed for scenarios where performance impact is negligible and simplicity is valued over throughput.
+NanoGlobalCache uses `:pg` for replication and `:global.trans/2` for coordination. All nodes maintain local replicas for fast access, eliminating network latency for reads. Updates are coordinated globally to keep replicas consistent. Designed for scenarios where simplicity and predictable local access are valued.
 
 **For more demanding use cases**, consider [Cachex](https://github.com/whitfin/cachex) or [Nebulex](https://github.com/cabol/nebulex).
 
