@@ -9,7 +9,7 @@ defmodule NanoGlobalCache do
   use Spark.Dsl, default_extensions: [extensions: [NanoGlobalCache.Dsl]]
 
   @doc """
-  Fetch a cached value, returning `{:ok, value, timestamp}` on success or `:error` on failure.
+  Fetch a cached value, returning `{:ok, value, expires_at}` on success or `:error` on failure.
 
   The cache is created on first access and automatically reused for subsequent fetches
   until the expiration time is reached. Failures are not cached and retried on each call.
@@ -19,8 +19,8 @@ defmodule NanoGlobalCache do
     %{expires_in: expires_in, fetch: fetch_fn} =
       NanoGlobalCache.Info.caches(module) |> Enum.find(fn cache -> cache.name == cache_name end)
 
-    # Wrap the fetch function to add timestamp for expiration tracking
-    fetch_with_timestamp = fn -> fetch_fn.() |> timestamp_entry() end
+    # Wrap the fetch function to add expiration time for tracking
+    fetch_with_expiration = fn -> fetch_fn.() |> add_expiration(expires_in) end
 
     # Create a unique global identifier for this cache
     agent = {module, cache_name}
@@ -28,9 +28,9 @@ defmodule NanoGlobalCache do
     # Use global transaction to ensure thread-safe cache operations
     :global.trans(agent, fn ->
       case :global.whereis_name(agent) do
-        # First access: fetch value and create agent to hold the timestamped entry
+        # First access: fetch value and create agent to hold the entry with expiration time
         :undefined ->
-          {:ok, pid} = Agent.start(fetch_with_timestamp, name: {:global, agent})
+          {:ok, pid} = Agent.start(fetch_with_expiration, name: {:global, agent})
           Agent.get(pid, & &1)
 
         # Subsequent access: check expiration and update if needed
@@ -38,16 +38,16 @@ defmodule NanoGlobalCache do
           Agent.get_and_update(pid, fn
             # Failures are never cached, always retry
             :error ->
-              new_entry = fetch_with_timestamp.()
+              new_entry = fetch_with_expiration.()
               {new_entry, new_entry}
 
             # Check expiration status and update if needed
-            {:ok, _, timestamp} = entry ->
-              elapsed = System.system_time(:millisecond) - timestamp
+            {:ok, _, expires_at} = entry ->
+              now = System.system_time(:millisecond)
 
-              if elapsed > expires_in do
+              if now > expires_at do
                 # Expired: discard old entry and fetch fresh value
-                new_entry = fetch_with_timestamp.()
+                new_entry = fetch_with_expiration.()
                 {new_entry, new_entry}
               else
                 # Still valid: return cached value without updating
@@ -61,11 +61,11 @@ defmodule NanoGlobalCache do
   @doc """
   Fetch a cached value, raising an exception on failure.
 
-  Returns the cached value directly without timestamp.
+  Returns the cached value directly without expiration time.
   """
   def fetch!(module, cache_name) do
     case fetch(module, cache_name) do
-      {:ok, value, _timestamp} -> value
+      {:ok, value, _expires_at} -> value
       :error -> raise "Failed to fetch cache: #{inspect(cache_name)}"
     end
   end
@@ -99,9 +99,13 @@ defmodule NanoGlobalCache do
     end)
   end
 
-  # Private helpers for timestamp management
+  # Private helpers for expiration management
 
-  # Attaches current timestamp to successful results for expiration tracking
-  defp timestamp_entry(:error), do: :error
-  defp timestamp_entry({:ok, value}), do: {:ok, value, System.system_time(:millisecond)}
+  # Calculates and attaches expiration time to successful results
+  defp add_expiration(:error, _expires_in), do: :error
+
+  defp add_expiration({:ok, value}, expires_in) do
+    expires_at = System.system_time(:millisecond) + expires_in
+    {:ok, value, expires_at}
+  end
 end

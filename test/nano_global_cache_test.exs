@@ -44,22 +44,24 @@ defmodule NanoGlobalCacheTest do
 
   describe "fetch/1" do
     test "caches GitHub tokens until expiration" do
-      {:ok, token1, timestamp1} = TokenCache.fetch(:github)
+      now = System.system_time(:millisecond)
+      {:ok, token1, expires_at1} = TokenCache.fetch(:github)
       assert_receive :github
-      assert is_integer(timestamp1)
+      assert is_integer(expires_at1)
+      assert expires_at1 > now
 
-      {:ok, token2, timestamp2} = TokenCache.fetch(:github)
+      {:ok, token2, expires_at2} = TokenCache.fetch(:github)
       # cached, no re-execution (no external API call)
       refute_receive :github
       assert token1 == token2
-      assert timestamp1 == timestamp2
+      assert expires_at1 == expires_at2
 
       Process.sleep(300)
 
-      {:ok, token3, timestamp3} = TokenCache.fetch(:github)
+      {:ok, token3, expires_at3} = TokenCache.fetch(:github)
       assert_receive :github
       assert token3 != token1
-      assert timestamp3 > timestamp1
+      assert expires_at3 > expires_at1
     end
 
     test "does not cache Google token refresh failures" do

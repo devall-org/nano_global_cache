@@ -49,10 +49,10 @@ end
 ### Usage
 
 ```elixir
-# Pattern match on result with timestamp
-{:ok, token, timestamp} = MyApp.TokenCache.fetch(:github)
+# Pattern match on result with expiration time
+{:ok, token, expires_at} = MyApp.TokenCache.fetch(:github)
 
-# Or use bang version (no timestamp)
+# Or use bang version (no expiration time)
 token = MyApp.TokenCache.fetch!(:github)
 
 # Clear cache
@@ -62,7 +62,7 @@ MyApp.TokenCache.clear_all()
 
 ## How It Works
 
-- **Successful results**: Cached with timestamp, returned until expiration
+- **Successful results**: Cached with expiration time, returned until expiration
 - **Failed results** (`:error`): Never cached, always retried on next call
 - **Thread safety**: All operations use global Erlang transactions (`global.trans/2`)
 
@@ -92,8 +92,8 @@ end
 ```
 
 ### Generated Functions
-- `fetch(name)` → `{:ok, value, timestamp}` or `:error`
-- `fetch!(name)` → `value` (without timestamp) or raises `RuntimeError`
+- `fetch(name)` → `{:ok, value, expires_at}` or `:error`
+- `fetch!(name)` → `value` (without expiration time) or raises `RuntimeError`
 - `clear(name)` → `:ok`
 - `clear_all()` → `:ok`
 
