@@ -1,5 +1,5 @@
 defmodule NanoGlobalCache.DistributedTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   @moduletag :distributed
 

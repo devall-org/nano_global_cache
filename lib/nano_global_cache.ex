@@ -30,20 +30,25 @@ defmodule NanoGlobalCache do
         acquire_lock_and_fetch(group, fetch_fn)
 
       local_pid ->
-        # Local agent exists
-        case Agent.get(local_pid, & &1) do
-          :error ->
-            # Failed entry, need to retry
-            acquire_lock_and_fetch(group, fetch_fn)
-
-          {:ok, _, expires_at} = entry ->
-            if expired?(expires_at) do
-              # Expired, need to refresh
+        # Local agent exists, check if still alive
+        if Process.alive?(local_pid) do
+          case Agent.get(local_pid, & &1) do
+            :error ->
+              # Failed entry, need to retry
               acquire_lock_and_fetch(group, fetch_fn)
-            else
-              # Valid, return immediately
-              entry
-            end
+
+            {:ok, _, expires_at} = entry ->
+              if expired?(expires_at) do
+                # Expired, need to refresh
+                acquire_lock_and_fetch(group, fetch_fn)
+              else
+                # Valid, return immediately
+                entry
+              end
+          end
+        else
+          # Agent was stopped, need to recreate
+          acquire_lock_and_fetch(group, fetch_fn)
         end
     end
   end
@@ -59,24 +64,30 @@ defmodule NanoGlobalCache do
           Agent.get(local_pid, & &1)
 
         local_pid ->
-          # Local agent exists, check again
-          case Agent.get(local_pid, & &1) do
-            :error ->
-              # Fetch and update all members
-              new_entry = fetch_fn.()
-              update_all_members(group, new_entry)
-              new_entry
-
-            {:ok, _, expires_at} = entry ->
-              if expired?(expires_at) do
+          # Local agent exists, check if still alive and check again
+          if Process.alive?(local_pid) do
+            case Agent.get(local_pid, & &1) do
+              :error ->
                 # Fetch and update all members
                 new_entry = fetch_fn.()
                 update_all_members(group, new_entry)
                 new_entry
-              else
-                # Another process already updated it
-                entry
-              end
+
+              {:ok, _, expires_at} = entry ->
+                if expired?(expires_at) do
+                  # Fetch and update all members
+                  new_entry = fetch_fn.()
+                  update_all_members(group, new_entry)
+                  new_entry
+                else
+                  # Another process already updated it
+                  entry
+                end
+            end
+          else
+            # Agent was stopped, recreate
+            new_pid = create_local_agent(group, fetch_fn)
+            Agent.get(new_pid, & &1)
           end
       end
     end)
