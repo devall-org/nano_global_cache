@@ -121,5 +121,23 @@ end
 ## Implementation
 
 - [Spark](https://github.com/ash-project/spark) DSL for compile-time configuration
-- Erlang global agents for distributed storage
+- `:pg` for agent replication across cluster
+- `:global.trans/2` for distributed coordination
 - Automatic function generation via transformers
+
+## Development
+
+### Running Tests
+
+```bash
+# Run all tests (includes distributed tests)
+mix test
+
+# Run only distributed tests
+mix test --only distributed
+
+# Exclude distributed tests
+mix test --exclude distributed
+```
+
+Distributed tests automatically start a local Erlang cluster using `:net_kernel` and `:peer` to verify cache replication and synchronization across multiple nodes.

@@ -39,6 +39,9 @@ defmodule NanoGlobalCacheTest do
 
     on_exit(fn ->
       TokenCache.clear_all()
+
+      # Ensure :pg groups are cleaned
+      Process.sleep(10)
     end)
 
     :ok
