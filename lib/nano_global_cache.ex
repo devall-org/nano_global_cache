@@ -30,7 +30,13 @@ defmodule NanoGlobalCache do
       case :global.whereis_name(agent) do
         # First access: fetch value and create agent to hold the entry
         :undefined ->
-          {:ok, pid} = Agent.start(fetch_fn, name: {:global, agent})
+          spec = %{
+            id: agent,
+            start: {Agent, :start_link, [fetch_fn, [name: {:global, agent}]]},
+            restart: :temporary
+          }
+
+          {:ok, pid} = DynamicSupervisor.start_child(NanoGlobalCache.Supervisor, spec)
           Agent.get(pid, & &1)
 
         # Subsequent access: check expiration and update if needed

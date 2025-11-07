@@ -17,7 +17,7 @@ Perfect for caching OAuth tokens, API keys, and other time-sensitive data that s
 
 ```elixir
 def deps do
-  [{:nano_global_cache, "~> 0.2.0"}]
+  [{:nano_global_cache, "~> 0.2.1"}]
 end
 ```
 

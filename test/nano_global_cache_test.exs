@@ -107,4 +107,26 @@ defmodule NanoGlobalCacheTest do
       assert token2 != token1
     end
   end
+
+  describe "supervision" do
+    test "agents are added to DynamicSupervisor" do
+      # Initially no children
+      %{active: active_before} = DynamicSupervisor.count_children(NanoGlobalCache.Supervisor)
+
+      # Create first cache
+      {:ok, _, _} = TokenCache.fetch(:github)
+      %{active: active_after_1} = DynamicSupervisor.count_children(NanoGlobalCache.Supervisor)
+      assert active_after_1 == active_before + 1
+
+      # Create second cache
+      {:ok, _, _} = TokenCache.fetch(:slack)
+      %{active: active_after_2} = DynamicSupervisor.count_children(NanoGlobalCache.Supervisor)
+      assert active_after_2 == active_before + 2
+
+      # Clear one cache
+      TokenCache.clear(:github)
+      %{active: active_after_clear} = DynamicSupervisor.count_children(NanoGlobalCache.Supervisor)
+      assert active_after_clear == active_before + 1
+    end
+  end
 end

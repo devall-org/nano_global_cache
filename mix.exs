@@ -4,11 +4,12 @@ defmodule NanoGlobalCache.MixProject do
   def project do
     [
       app: :nano_global_cache,
-      version: "0.2.0",
+      version: "0.2.1",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      description: "Lightweight global cache for Elixir with expiration support and intelligent failure handling",
+      description:
+        "Lightweight global cache for Elixir with expiration support and intelligent failure handling",
       package: package()
     ]
   end
@@ -16,7 +17,8 @@ defmodule NanoGlobalCache.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: [:logger],
+      mod: {NanoGlobalCache.Application, []}
     ]
   end
 
