@@ -39,19 +39,6 @@ defmodule NanoGlobalCacheTest do
 
     on_exit(fn ->
       TokenCache.clear_all()
-      # Ensure all :pg groups are cleaned up
-      for cache_name <- [:github, :google, :slack] do
-        group = {TokenCache, cache_name}
-
-        :pg.get_members(:nano_global_cache, group)
-        |> Enum.each(fn pid ->
-          try do
-            Agent.stop(pid)
-          catch
-            _, _ -> :ok
-          end
-        end)
-      end
     end)
 
     :ok
