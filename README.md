@@ -7,9 +7,9 @@ Perfect for caching OAuth tokens, API keys, and other time-sensitive data that s
 ## Why NanoGlobalCache?
 
 - ✅ **Smart caching**: Caches successes, retries failures on next fetch
-- 🌍 **Distributed**: Shared across entire Erlang cluster
+- 🌍 **Read replicas**: Each node maintains local copy for fast, lock-free access
 - 🔐 **Concurrency-safe**: Safe concurrent access via `:global.trans/2`
-- ⏱️ **Expiration**: Time-based invalidation
+- ⏱️ **Expiration**: Time-based invalidation with custom logic
 - 📝 **Clean DSL**: [Spark](https://github.com/ash-project/spark)-based compile-time configuration with auto-generated functions
 - ⚡ **Minimal overhead**: No background processes or setup
 
@@ -75,10 +75,20 @@ MyApp.TokenCache.clear_all()
 
 ## How It Works
 
-- **Replicated storage**: Each cache is replicated across all nodes using `:pg` groups
-- **Local preference**: Read operations prioritize local replicas (lock-free, fast)
-- **Safe updates**: Updates use `:global.trans/2` with double-check pattern to prevent race conditions
-- **Expiration handling**: Each node checks expiration independently; only expired entries trigger cluster-wide fetch
+### Read Replicas for Performance
+
+NanoGlobalCache uses a **read replica pattern** to eliminate network latency:
+
+- **Each node maintains a local Agent** with its own copy of the cached data
+- Reads are served from the local replica (no network hop, no lock)
+- First access on a node creates a local replica by copying from existing nodes or fetching fresh
+
+### Consistency Model
+
+- **Expiration checks**: Each node independently checks expiration (eventually consistent)
+- **Updates**: Coordinated via `:global.trans/2` to prevent race conditions
+- **Double-check pattern**: Lock winner verifies expiration again before fetching
+- **Replica sync**: All replicas updated atomically within the lock
 - **Failed results**: Never cached, always retried on next call
 
 ## When to Use

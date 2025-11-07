@@ -1,34 +1,28 @@
 defmodule NanoGlobalCache.DistributedTest do
   use ExUnit.Case
 
-  alias TestCache
-
   @moduletag :distributed
 
   setup do
+    nodes = ClusterHelper.start_nodes([:node2])
+    [{_pid2, node2}] = nodes
+
     on_exit(fn ->
       TestCache.clear_all()
+      ClusterHelper.stop_nodes(nodes)
     end)
 
-    :ok
+    {:ok, node2: node2}
   end
 
   describe "distributed caching" do
-    test "cache is replicated across nodes" do
-      nodes = ClusterHelper.start_nodes([:node2])
-      [{_pid2, node2}] = nodes
-
+    test "cache is replicated across nodes", %{node2: node2} do
       {:ok, token1, _} = TestCache.fetch(:github)
-      token2 = :erpc.call(node2, TestCache, :fetch, [:github])
-      assert {:ok, ^token1, _} = token2
-
-      ClusterHelper.stop_nodes(nodes)
+      {:ok, token2, _} = :erpc.call(node2, TestCache, :fetch, [:github])
+      assert token1 == token2
     end
 
-    test "updates are synchronized across nodes" do
-      nodes = ClusterHelper.start_nodes([:node2])
-      [{_pid2, node2}] = nodes
-
+    test "updates are synchronized across nodes", %{node2: node2} do
       {:ok, token1, _} = TestCache.fetch(:github)
       Process.sleep(250)
 
@@ -37,57 +31,59 @@ defmodule NanoGlobalCache.DistributedTest do
 
       {:ok, token3, _} = :erpc.call(node2, TestCache, :fetch, [:github])
       assert token3 == token2
-
-      ClusterHelper.stop_nodes(nodes)
     end
 
-    test "each node has local replica" do
-      nodes = ClusterHelper.start_nodes([:node2])
-      [{_pid2, node2}] = nodes
+    test "each node has local replica", %{node2: node2} do
       group = {TestCache, :github}
 
-      # 초기 상태: 두 노드 모두 local member 0개
+      # Initial state: no local members on both nodes
       assert :pg.get_local_members(:nano_global_cache, group) == []
       local2_before = :erpc.call(node2, :pg, :get_local_members, [:nano_global_cache, group])
       assert local2_before == []
 
-      # Node1에서 fetch
+      # Fetch from node1
       {:ok, _, _} = TestCache.fetch(:github)
 
-      # Node1에만 local member 생성됨
+      # Local member created only on node1
       assert length(:pg.get_local_members(:nano_global_cache, group)) == 1
       assert :erpc.call(node2, :pg, :get_local_members, [:nano_global_cache, group]) == []
 
-      # Node2에서 fetch (복제 생성)
+      # Fetch from node2 (creates replica)
       :erpc.call(node2, TestCache, :fetch, [:github])
 
-      # :pg 그룹에 2개 멤버
+      # 2 members in :pg group
       assert length(:pg.get_members(:nano_global_cache, group)) == 2
 
-      # 각 노드에 local member 1개씩
+      # Each node has 1 local member
       assert length(:pg.get_local_members(:nano_global_cache, group)) == 1
       local2_after = :erpc.call(node2, :pg, :get_local_members, [:nano_global_cache, group])
       assert length(local2_after) == 1
-
-      ClusterHelper.stop_nodes(nodes)
     end
 
-    test "concurrent updates are safe" do
-      nodes = ClusterHelper.start_nodes([:node2])
-      [{_pid2, node2}] = nodes
+    test "concurrent updates are safe", %{node2: node2} do
+      # Register tracker to count fetch calls
+      Process.register(self(), :fetch_tracker)
 
       {:ok, _, _} = TestCache.fetch(:github)
+      assert_receive {:fetch, :github, _}, 100
+
       Process.sleep(250)
 
+      # Concurrent fetch from both nodes
       task1 = Task.async(fn -> TestCache.fetch(:github) end)
       task2 = Task.async(fn -> :erpc.call(node2, TestCache, :fetch, [:github]) end)
 
       {:ok, token1, _} = Task.await(task1)
       {:ok, token2, _} = Task.await(task2)
 
+      # Same token (same fetch result)
       assert token1 == token2
 
-      ClusterHelper.stop_nodes(nodes)
+      # Only one fetch was executed despite concurrent requests
+      assert_receive {:fetch, :github, _}, 100
+      refute_receive {:fetch, :github, _}, 100
+
+      Process.unregister(:fetch_tracker)
     end
   end
 end

@@ -1,4 +1,4 @@
-defmodule NanoGlobalCacheTest do
+defmodule NanoGlobalCache.SingleNodeTest do
   use ExUnit.Case
   doctest NanoGlobalCache
 

@@ -105,7 +105,14 @@ defmodule NanoGlobalCache do
     :global.trans(group, fn ->
       group
       |> get_all_agents()
-      |> Enum.each(&Agent.stop/1)
+      |> Enum.each(fn pid ->
+        try do
+          Agent.stop(pid)
+        catch
+          # Ignore all errors (node down, connection lost, etc)
+          _, _ -> :ok
+        end
+      end)
     end)
   end
 

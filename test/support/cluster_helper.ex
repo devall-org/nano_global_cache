@@ -18,12 +18,7 @@ defmodule ClusterHelper do
 
     # Start peer nodes
     Enum.map(names, fn name ->
-      {:ok, pid, node} =
-        :peer.start_link(%{
-          name: name,
-          connection: :standard_io,
-          args: [~c"-setcookie", ~c"test_cookie"]
-        })
+      {:ok, pid, node} = :peer.start_link(%{name: name, args: [~c"-setcookie", ~c"test_cookie"]})
 
       # Add code paths from current node
       :erpc.call(node, :code, :add_paths, [:code.get_path()])
@@ -31,17 +26,17 @@ defmodule ClusterHelper do
       # Start application on peer node
       {:ok, _apps} = :erpc.call(node, Application, :ensure_all_started, [:nano_global_cache])
 
-      # Compile and load test cache module on peer
-      # test_cache_path = Path.expand("test/support/test_cache.ex")
-      # _compiled = :erpc.call(node, Code, :compile_file, [test_cache_path])
-
       {pid, node}
     end)
   end
 
   def stop_nodes(nodes) do
     Enum.each(nodes, fn {pid, _node} ->
-      :peer.stop(pid)
+      try do
+        :peer.stop(pid)
+      catch
+        _, _ -> :ok
+      end
     end)
   end
 end
