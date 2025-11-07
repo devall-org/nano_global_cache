@@ -42,6 +42,7 @@ defmodule NanoGlobalCacheTest do
       # Ensure all :pg groups are cleaned up
       for cache_name <- [:github, :google, :slack] do
         group = {TokenCache, cache_name}
+
         :pg.get_members(:nano_global_cache, group)
         |> Enum.each(fn pid ->
           try do

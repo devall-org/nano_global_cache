@@ -16,9 +16,4 @@ defmodule NanoGlobalCache.Application do
     opts = [strategy: :one_for_one, name: NanoGlobalCache.ApplicationSupervisor]
     Supervisor.start_link(children, opts)
   end
-
-  @impl true
-  def stop(_state) do
-    :ok
-  end
 end
