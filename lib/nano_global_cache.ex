@@ -13,24 +13,24 @@ defmodule NanoGlobalCache do
 
   The cache is created on first access and automatically reused for subsequent fetches
   until the expiration time is reached. Failures are not cached and retried on each call.
+
+  The fetch function must return `{:ok, value, expires_at}` where `expires_at` is a Unix
+  timestamp in milliseconds, or `:error`.
   """
   def fetch(module, cache_name) do
-    # Retrieve cache configuration (expiration time and fetch function)
-    %{expires_in: expires_in, fetch: fetch_fn} =
+    # Retrieve cache configuration (fetch function)
+    %{fetch: fetch_fn} =
       NanoGlobalCache.Info.caches(module) |> Enum.find(fn cache -> cache.name == cache_name end)
-
-    # Wrap the fetch function to add expiration time for tracking
-    fetch_with_expiration = fn -> fetch_fn.() |> add_expiration(expires_in) end
 
     # Create a unique global identifier for this cache
     agent = {module, cache_name}
 
-    # Use global transaction to ensure thread-safe cache operations
+    # Use global transaction to ensure distributed concurrency-safe cache operations
     :global.trans(agent, fn ->
       case :global.whereis_name(agent) do
-        # First access: fetch value and create agent to hold the entry with expiration time
+        # First access: fetch value and create agent to hold the entry
         :undefined ->
-          {:ok, pid} = Agent.start(fetch_with_expiration, name: {:global, agent})
+          {:ok, pid} = Agent.start(fetch_fn, name: {:global, agent})
           Agent.get(pid, & &1)
 
         # Subsequent access: check expiration and update if needed
@@ -38,7 +38,7 @@ defmodule NanoGlobalCache do
           Agent.get_and_update(pid, fn
             # Failures are never cached, always retry
             :error ->
-              new_entry = fetch_with_expiration.()
+              new_entry = fetch_fn.()
               {new_entry, new_entry}
 
             # Check expiration status and update if needed
@@ -47,7 +47,7 @@ defmodule NanoGlobalCache do
 
               if now > expires_at do
                 # Expired: discard old entry and fetch fresh value
-                new_entry = fetch_with_expiration.()
+                new_entry = fetch_fn.()
                 {new_entry, new_entry}
               else
                 # Still valid: return cached value without updating
@@ -97,15 +97,5 @@ defmodule NanoGlobalCache do
     |> Enum.each(fn %{name: cache_name} ->
       NanoGlobalCache.clear(module, cache_name)
     end)
-  end
-
-  # Private helpers for expiration management
-
-  # Calculates and attaches expiration time to successful results
-  defp add_expiration(:error, _expires_in), do: :error
-
-  defp add_expiration({:ok, value}, expires_in) do
-    expires_at = System.system_time(:millisecond) + expires_in
-    {:ok, value, expires_at}
   end
 end

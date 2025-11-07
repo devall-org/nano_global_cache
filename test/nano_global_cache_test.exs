@@ -6,17 +6,15 @@ defmodule NanoGlobalCacheTest do
     use NanoGlobalCache
 
     cache :github do
-      expires_in 200
-
       fetch fn ->
         send(Agent.get(:cur_test, & &1), :github)
-        {:ok, "gho_#{:rand.uniform(10000)}"}
+        token = "gho_#{:rand.uniform(10000)}"
+        expires_at = System.system_time(:millisecond) + 200
+        {:ok, token, expires_at}
       end
     end
 
     cache :google do
-      expires_in 200
-
       fetch fn ->
         send(Agent.get(:cur_test, & &1), :google)
         :error
@@ -24,11 +22,11 @@ defmodule NanoGlobalCacheTest do
     end
 
     cache :slack do
-      expires_in :timer.hours(1)
-
       fetch fn ->
         send(Agent.get(:cur_test, & &1), :slack)
-        {:ok, "xoxb_#{:rand.uniform(10000)}"}
+        token = "xoxb_#{:rand.uniform(10000)}"
+        expires_at = System.system_time(:millisecond) + :timer.hours(1)
+        {:ok, token, expires_at}
       end
     end
 
@@ -108,10 +106,5 @@ defmodule NanoGlobalCacheTest do
       {:ok, token2, _} = TokenCache.fetch(:github)
       assert token2 != token1
     end
-  end
-
-  test "DSL timer.hours(1) equals 3600000 milliseconds" do
-    slack = NanoGlobalCache.Info.caches(TokenCache) |> Enum.find(&(&1.name == :slack))
-    assert slack.expires_in == 3_600_000
   end
 end
