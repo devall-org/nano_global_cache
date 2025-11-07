@@ -9,7 +9,7 @@ defmodule NanoGlobalCache do
   use Spark.Dsl, default_extensions: [extensions: [NanoGlobalCache.Dsl]]
 
   @doc """
-  Fetch a cached value, returning `{:ok, value}` on success or `:error` on failure.
+  Fetch a cached value, returning `{:ok, value, timestamp}` on success or `:error` on failure.
 
   The cache is created on first access and automatically reused for subsequent fetches
   until the expiration time is reached. Failures are not cached and retried on each call.
@@ -31,7 +31,7 @@ defmodule NanoGlobalCache do
         # First access: fetch value and create agent to hold the timestamped entry
         :undefined ->
           {:ok, pid} = Agent.start(fetch_with_timestamp, name: {:global, agent})
-          Agent.get(pid, &untimestamp_entry/1)
+          Agent.get(pid, & &1)
 
         # Subsequent access: check expiration and update if needed
         pid when is_pid(pid) ->
@@ -39,7 +39,7 @@ defmodule NanoGlobalCache do
             # Failures are never cached, always retry
             :error ->
               new_entry = fetch_with_timestamp.()
-              {untimestamp_entry(new_entry), new_entry}
+              {new_entry, new_entry}
 
             # Check expiration status and update if needed
             {:ok, _, timestamp} = entry ->
@@ -48,10 +48,10 @@ defmodule NanoGlobalCache do
               if elapsed > expires_in do
                 # Expired: discard old entry and fetch fresh value
                 new_entry = fetch_with_timestamp.()
-                {untimestamp_entry(new_entry), new_entry}
+                {new_entry, new_entry}
               else
                 # Still valid: return cached value without updating
-                {untimestamp_entry(entry), entry}
+                {entry, entry}
               end
           end)
       end
@@ -61,11 +61,11 @@ defmodule NanoGlobalCache do
   @doc """
   Fetch a cached value, raising an exception on failure.
 
-  Returns the cached value directly instead of a tuple.
+  Returns the cached value directly without timestamp.
   """
   def fetch!(module, cache_name) do
     case fetch(module, cache_name) do
-      {:ok, value} -> value
+      {:ok, value, _timestamp} -> value
       :error -> raise "Failed to fetch cache: #{inspect(cache_name)}"
     end
   end
@@ -104,8 +104,4 @@ defmodule NanoGlobalCache do
   # Attaches current timestamp to successful results for expiration tracking
   defp timestamp_entry(:error), do: :error
   defp timestamp_entry({:ok, value}), do: {:ok, value, System.system_time(:millisecond)}
-
-  # Removes timestamp from cached entries before returning to caller
-  defp untimestamp_entry(:error), do: :error
-  defp untimestamp_entry({:ok, value, _timestamp}), do: {:ok, value}
 end

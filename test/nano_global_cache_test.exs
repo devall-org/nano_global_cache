@@ -44,19 +44,22 @@ defmodule NanoGlobalCacheTest do
 
   describe "fetch/1" do
     test "caches GitHub tokens until expiration" do
-      {:ok, token1} = TokenCache.fetch(:github)
+      {:ok, token1, timestamp1} = TokenCache.fetch(:github)
       assert_receive :github
+      assert is_integer(timestamp1)
 
-      {:ok, token2} = TokenCache.fetch(:github)
+      {:ok, token2, timestamp2} = TokenCache.fetch(:github)
       # cached, no re-execution (no external API call)
       refute_receive :github
       assert token1 == token2
+      assert timestamp1 == timestamp2
 
       Process.sleep(300)
 
-      {:ok, token3} = TokenCache.fetch(:github)
+      {:ok, token3, timestamp3} = TokenCache.fetch(:github)
       assert_receive :github
       assert token3 != token1
+      assert timestamp3 > timestamp1
     end
 
     test "does not cache Google token refresh failures" do
@@ -84,23 +87,23 @@ defmodule NanoGlobalCacheTest do
 
   describe "clear" do
     test "removes cache before expiration" do
-      {:ok, token1} = TokenCache.fetch(:github)
-      {:ok, token2} = TokenCache.fetch(:github)
+      {:ok, token1, _} = TokenCache.fetch(:github)
+      {:ok, token2, _} = TokenCache.fetch(:github)
       assert token1 == token2
 
       TokenCache.clear(:github)
 
-      {:ok, token3} = TokenCache.fetch(:github)
+      {:ok, token3, _} = TokenCache.fetch(:github)
       assert token3 != token1
     end
 
     test "clear_all removes all caches" do
-      {:ok, token1} = TokenCache.fetch(:github)
+      {:ok, token1, _} = TokenCache.fetch(:github)
       :error = TokenCache.fetch(:google)
 
       TokenCache.clear_all()
 
-      {:ok, token2} = TokenCache.fetch(:github)
+      {:ok, token2, _} = TokenCache.fetch(:github)
       assert token2 != token1
     end
   end

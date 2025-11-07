@@ -49,10 +49,10 @@ end
 ### Usage
 
 ```elixir
-# Pattern match on result
-{:ok, token} = MyApp.TokenCache.fetch(:github)
+# Pattern match on result with timestamp
+{:ok, token, timestamp} = MyApp.TokenCache.fetch(:github)
 
-# Or use bang version
+# Or use bang version (no timestamp)
 token = MyApp.TokenCache.fetch!(:github)
 
 # Clear cache
@@ -92,8 +92,8 @@ end
 ```
 
 ### Generated Functions
-- `fetch(name)` → `{:ok, value}` or `:error`
-- `fetch!(name)` → `value` or raises `RuntimeError`
+- `fetch(name)` → `{:ok, value, timestamp}` or `:error`
+- `fetch!(name)` → `value` (without timestamp) or raises `RuntimeError`
 - `clear(name)` → `:ok`
 - `clear_all()` → `:ok`
 
