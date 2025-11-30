@@ -1,5 +1,7 @@
 # NanoGlobalCache
 
+> ⚠️ **This package has been renamed to [expirable_store](https://github.com/devall-org/expirable_store).** Please use `{:expirable_store, "~> 0.4"}` instead.
+
 🔒 **Lightweight global cache for Elixir** with expiration support and intelligent failure handling.
 
 Perfect for caching OAuth tokens, API keys, and other time-sensitive data that shouldn't be repeatedly refreshed.
